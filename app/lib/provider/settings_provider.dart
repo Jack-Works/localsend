@@ -6,6 +6,7 @@ import 'package:localsend_app/model/persistence/quick_save_mode.dart';
 import 'package:localsend_app/model/send_mode.dart';
 import 'package:localsend_app/model/state/settings_state.dart';
 import 'package:localsend_app/provider/persistence_provider.dart';
+import 'package:localsend_app/util/background_receive_service.dart';
 import 'package:localsend_isolates/isolate.dart';
 import 'package:localsend_isolates/model/device.dart';
 import 'package:refena_flutter/refena_flutter.dart';
@@ -74,6 +75,7 @@ class SettingsService extends PureNotifier<SettingsState> {
     createChecksums: _persistence.getCreateChecksums(),
     verifyChecksums: _persistence.getVerifyChecksums(),
     discoveryTimeout: _persistence.getDiscoveryTimeout(),
+    backgroundReceive: _persistence.isBackgroundReceive(),
     advancedSettings: _persistence.getAdvancedSettingsEnabled(),
   );
 
@@ -173,6 +175,18 @@ class SettingsService extends PureNotifier<SettingsState> {
     state = state.copyWith(
       saveToHistory: saveToHistory,
     );
+  }
+
+  Future<void> setBackgroundReceive(bool backgroundReceive) async {
+    await _persistence.setBackgroundReceive(backgroundReceive);
+    state = state.copyWith(
+      backgroundReceive: backgroundReceive,
+    );
+    if (backgroundReceive) {
+      startBackgroundReceiveService();
+    } else {
+      stopBackgroundReceiveService();
+    }
   }
 
   Future<void> setQuickSave(bool quickSave) async {

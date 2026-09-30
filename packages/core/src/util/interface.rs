@@ -113,6 +113,14 @@ pub(crate) fn local_interfaces(filter: &InterfaceFilter) -> std::io::Result<Loca
             continue;
         }
 
+        // Point-to-point interfaces such as cellular data and VPN tunnels do
+        // not carry LAN multicast. Including them creates extra wildcard UDP
+        // sockets on the same port, which can steal multicast packets from
+        // the socket joined to the actual Wi-Fi interface on Android.
+        if interface.is_p2p() || is_non_lan_interface(&interface.name) {
+            continue;
+        }
+
         match by_name
             .iter_mut()
             .find(|entry| entry.name == interface.name)
@@ -171,6 +179,24 @@ pub(crate) fn local_interfaces(filter: &InterfaceFilter) -> std::io::Result<Loca
     }
 
     Ok(result)
+}
+
+/// Android reports some cellular interfaces as ordinary broadcast-capable
+/// interfaces even though they cannot carry LAN multicast. Exclude those
+/// names here; Wi-Fi, Ethernet and USB-tethering interfaces remain eligible.
+fn is_non_lan_interface(name: &str) -> bool {
+    #[cfg(target_os = "android")]
+    {
+        return ["rmnet", "ccmni", "pdp", "wwan"]
+            .iter()
+            .any(|prefix| name.starts_with(prefix));
+    }
+
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = name;
+        false
+    }
 }
 
 /// The IPv4 addresses of all usable (non-loopback, unfiltered) local

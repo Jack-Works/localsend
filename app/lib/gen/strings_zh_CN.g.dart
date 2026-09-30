@@ -40,6 +40,8 @@ class TranslationsZhCn extends Translations with BaseTranslations<AppLocale, Tra
 
   // Translations
   @override
+  late final Translations$notifications$zh_CN notifications = Translations$notifications$zh_CN.internal(_root);
+  @override
   String get appName => 'LocalSend';
   @override
   late final Translations$general$zh_CN general = Translations$general$zh_CN.internal(_root);
@@ -95,6 +97,25 @@ class TranslationsZhCn extends Translations with BaseTranslations<AppLocale, Tra
   late final Translations$web$zh_CN web = Translations$web$zh_CN.internal(_root);
   @override
   late final Translations$assetPicker$zh_CN assetPicker = Translations$assetPicker$zh_CN.internal(_root);
+}
+
+// Path: notifications
+class Translations$notifications$zh_CN extends Translations$notifications$en {
+  Translations$notifications$zh_CN.internal(TranslationsZhCn root) : this._root = root, super.internal(root);
+
+  final TranslationsZhCn _root; // ignore: unused_field
+
+  // Translations
+  @override
+  String get backgroundService => '后台接收服务';
+  @override
+  String get requests => '接收请求';
+  @override
+  String get progress => '传输进度';
+  @override
+  String get results => '收到的文件与文本';
+  @override
+  String get ignore => '忽略';
 }
 
 // Path: general

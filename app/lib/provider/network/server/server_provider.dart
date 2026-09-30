@@ -250,6 +250,8 @@ class ServerService extends Notifier<ServerState?> {
     return await startServer(alias: alias, port: port, https: https, web: web);
   }
 
+  Future<void> handleReceiveNotificationAction(String sessionId, String action) => _receiveController.handleNotificationAction(sessionId, action);
+
   Future<void> acceptFileRequest(Map<String, String> fileNameMap) async {
     await _receiveController.acceptFileRequest(fileNameMap);
   }

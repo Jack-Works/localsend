@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/model/state/server/receive_session_state.dart';
 import 'package:localsend_app/model/state/server/receiving_file.dart';
 import 'package:localsend_app/pages/home_page.dart';
@@ -22,6 +23,7 @@ import 'package:localsend_app/provider/security_provider.dart';
 import 'package:localsend_app/provider/selection/selected_receiving_files_provider.dart';
 import 'package:localsend_app/provider/selection/selected_sending_files_provider.dart';
 import 'package:localsend_app/provider/settings_provider.dart';
+import 'package:localsend_app/util/background_receive_service.dart';
 import 'package:localsend_app/util/native/directories.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
 import 'package:localsend_app/util/native/tray_helper.dart';
@@ -32,6 +34,7 @@ import 'package:localsend_isolates/model/file_status.dart';
 import 'package:localsend_isolates/model/file_type.dart';
 import 'package:localsend_isolates/model/session_status.dart';
 import 'package:localsend_isolates/rust/api/server.dart' show SessionEndReasonV2;
+import 'package:localsend_isolates/util/foreground_service.dart';
 import 'package:localsend_isolates/util/rust.dart';
 import 'package:localsend_isolates/util/transfer_notification.dart';
 import 'package:logging/logging.dart';
@@ -50,6 +53,21 @@ class ReceiveController {
   final ServerUtils server;
 
   ReceiveController(this.server);
+
+  String? _notificationSessionId;
+  DateTime? _lastNotificationProgress;
+
+  Future<void> handleNotificationAction(String sessionId, String action) async {
+    final session = server.getStateOrNull()?.session;
+    if (session == null || session.sessionId != sessionId || session.status != SessionStatus.waiting || _notificationSessionId != sessionId) {
+      return;
+    }
+    if (action == 'ignore') {
+      declineFileRequest();
+    } else if (action == 'accept') {
+      await acceptFileRequest(session.message == null ? {for (final f in session.files.values) f.file.id: f.file.fileName} : {});
+    }
+  }
 
   /// A device registered itself on this server.
   Future<void> onRegister(HttpServerRegisterEvent event) async {
@@ -139,16 +157,34 @@ class ReceiveController {
       quickSave = true;
     }
 
+    final receiveInBackground = checkPlatform([TargetPlatform.android]) && settings.backgroundReceive && ForegroundService.isAppInBackground;
+    if (receiveInBackground) {
+      _notificationSessionId = sessionId;
+      final shown = await showBackgroundReceiveRequest(server.getState().session!);
+      if (server.getStateOrNull()?.session?.sessionId != sessionId) {
+        cancelBackgroundReceiveNotification(sessionId);
+      } else if (!shown) {
+        // Never silently accept a request the user could not see.
+        declineFileRequest();
+      }
+      return;
+    }
+
     if (quickSave) {
       // Push before accepting: the permission request in [acceptFileRequest] may block for a while.
-      // ignore: use_build_context_synchronously, unawaited_futures
-      Routerino.context.pushImmediately(
-        () => ProgressPage(
-          showAppBar: false,
-          closeSessionOnClose: true,
-          sessionId: sessionId,
-        ),
-      );
+      if (!ForegroundService.isAppInBackground) {
+        // ignore: use_build_context_synchronously, unawaited_futures
+        unawaited(
+          // ignore: use_build_context_synchronously
+          Routerino.context.pushImmediately(
+            () => ProgressPage(
+              showAppBar: false,
+              closeSessionOnClose: true,
+              sessionId: sessionId,
+            ),
+          ),
+        );
+      }
 
       // accept all files
       await acceptFileRequest({
@@ -291,7 +327,11 @@ class ReceiveController {
   /// Reports the total session progress to the foreground service notification,
   /// so that it stays up to date while the app is minimized.
   void _updateForegroundServiceProgress(ReceiveSessionState session) {
-    if (!TransferNotification.shouldUpdate) {
+    final now = DateTime.now();
+    final updateReceiveNotification =
+        _notificationSessionId == session.sessionId &&
+        (_lastNotificationProgress == null || now.difference(_lastNotificationProgress!) >= const Duration(milliseconds: 500));
+    if (!TransferNotification.shouldUpdate && !updateReceiveNotification) {
       // Checked before the sum below because progress events arrive several times per second per file.
       return;
     }
@@ -309,6 +349,10 @@ class ReceiveController {
       currentBytes += (transferNotifier.getProgress(sessionId: session.sessionId, fileId: receivingFile.file.id) * size).round();
     }
 
+    if (updateReceiveNotification) {
+      _lastNotificationProgress = now;
+      showBackgroundReceiveProgress(session, currentBytes, totalBytes);
+    }
     TransferNotification.update(
       sessionId: session.sessionId,
       currentBytes: currentBytes,
@@ -349,6 +393,18 @@ class ReceiveController {
           ),
         ),
       );
+
+      if (_notificationSessionId == event.sessionId) {
+        unawaited(
+          showBackgroundReceiveComplete(
+            key: '${event.sessionId}/$fileId',
+            sender: receiveState.senderAlias,
+            name: receivingFile.desiredName!,
+            type: fileType,
+            path: filePath,
+          ),
+        );
+      }
 
       // Track it in history
       await server.ref
@@ -400,6 +456,20 @@ class ReceiveController {
       // The transfer is over, the process no longer needs to be kept alive for it.
       TransferNotification.stop(session.sessionId);
 
+      if (_notificationSessionId == session.sessionId) {
+        cancelBackgroundReceiveNotification(session.sessionId);
+        if (statuses.any((status) => status == FileStatus.failed)) {
+          unawaited(
+            showBackgroundReceiveComplete(
+              key: '${session.sessionId}/error',
+              sender: session.senderAlias,
+              name: t.general.error,
+              type: FileType.other,
+              failed: true,
+            ),
+          );
+        }
+      }
       final hasError = statuses.any((status) => status == FileStatus.failed);
       server.setState(
         (oldState) => oldState?.copyWith(
@@ -421,7 +491,7 @@ class ReceiveController {
           quickSave = true;
         }
       }
-      if (quickSave) {
+      if (quickSave && _notificationSessionId != session.sessionId) {
         // close the session **after** the response has been sent
         Future.delayed(Duration.zero, () {
           closeSession();
@@ -529,12 +599,45 @@ class ReceiveController {
       return;
     }
 
+    final notify = _notificationSessionId == session.sessionId;
     if (fileNameMap.isEmpty) {
-      // nothing selected, the Rust server responds with 204 and creates no session
-      // This usually happens for message transfers
+      // Complete the decision before awaiting persistence; duplicate taps cannot accept twice.
       server.ref.redux(parentIsolateProvider).dispatch(IsolateHttpServerPrepareUploadDecisionAction(config: _buildReceiveConfig(session, {})));
       closeSession();
+      final message = session.message;
+      if (notify && message != null) {
+        await server.ref
+            .redux(receiveHistoryProvider)
+            .dispatchAsync(
+              AddHistoryEntryAction(
+                entryId: const Uuid().v4(),
+                fileName: message,
+                fileType: FileType.text,
+                path: null,
+                savedToGallery: false,
+                isMessage: true,
+                fileSize: utf8.encode(message).length,
+                senderAlias: session.senderAlias,
+                timestamp: DateTime.now().toUtc(),
+              ),
+            );
+        await showBackgroundReceiveComplete(
+          key: session.sessionId,
+          sender: session.senderAlias,
+          name: message,
+          type: FileType.text,
+          message: message,
+        );
+      }
       return;
+    }
+    if (notify) {
+      showBackgroundReceiveProgress(
+        session,
+        0,
+        session.files.values.where((f) => fileNameMap.containsKey(f.file.id)).fold(0, (sum, f) => sum + f.file.size),
+        first: true,
+      );
     }
 
     server.setState(
@@ -596,7 +699,8 @@ class ReceiveController {
     // From here on, the server isolate receives all accepted files on its own
     // and reports back via upload progress/result events.
     final updatedSession = server.getStateOrNull()?.session;
-    if (updatedSession == null) {
+    if (updatedSession == null || updatedSession.sessionId != session.sessionId || updatedSession.status != SessionStatus.sending) {
+      TransferNotification.stop(session.sessionId);
       return;
     }
     server.ref
@@ -687,6 +791,11 @@ class ReceiveController {
     }
 
     TransferNotification.stop(sessionId);
+    if (_notificationSessionId == sessionId) {
+      cancelBackgroundReceiveNotification(sessionId);
+      _notificationSessionId = null;
+      _lastNotificationProgress = null;
+    }
 
     server.setState(
       (oldState) => oldState?.copyWith(
@@ -704,8 +813,11 @@ void _cancelBySender(ServerUtils server) {
   }
 
   TransferNotification.stop(receiveSession.sessionId);
+  if (checkPlatform([TargetPlatform.android])) {
+    cancelBackgroundReceiveNotification(receiveSession.sessionId);
+  }
 
-  if (receiveSession.status == SessionStatus.waiting) {
+  if (receiveSession.status == SessionStatus.waiting && !ForegroundService.isAppInBackground) {
     // received cancel during accept/decline
     // pop just in case if user is in [ReceiveOptionsPage]
     Routerino.context.popUntil(ReceivePage);

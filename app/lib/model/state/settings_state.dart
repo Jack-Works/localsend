@@ -38,6 +38,7 @@ class SettingsState with SettingsStateMappable {
   final bool createChecksums; // create checksums when sending files
   final bool verifyChecksums; // verify checksums when receiving files
   final int discoveryTimeout;
+  final bool backgroundReceive; // keep the Android receiver alive while the app is in the background
   final bool advancedSettings;
 
   const SettingsState({
@@ -70,6 +71,7 @@ class SettingsState with SettingsStateMappable {
     required this.createChecksums,
     required this.verifyChecksums,
     required this.discoveryTimeout,
+    required this.backgroundReceive,
     required this.advancedSettings,
   });
 }

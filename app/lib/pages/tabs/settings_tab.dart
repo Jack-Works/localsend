@@ -252,6 +252,14 @@ class SettingsTab extends StatelessWidget {
                     await ref.notifier(settingsProvider).setAutoFinish(b);
                   },
                 ),
+                if (checkPlatform([TargetPlatform.android]))
+                  _BooleanEntry(
+                    label: t.settingsTab.receive.runInBackground,
+                    value: vm.settings.backgroundReceive,
+                    onChanged: (b) async {
+                      await ref.notifier(settingsProvider).setBackgroundReceive(b);
+                    },
+                  ),
                 _BooleanEntry(
                   label: t.settingsTab.receive.saveToHistory,
                   value: vm.settings.saveToHistory,

@@ -26,6 +26,7 @@ import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/provider/tv_provider.dart';
 import 'package:localsend_app/provider/version_provider.dart';
 import 'package:localsend_app/provider/window_dimensions_provider.dart';
+import 'package:localsend_app/util/background_receive_service.dart';
 import 'package:localsend_app/util/i18n.dart';
 import 'package:localsend_app/util/native/autostart_helper.dart';
 import 'package:localsend_app/util/native/cache_helper.dart';
@@ -193,7 +194,7 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
       _logger.warning('Setting high refresh rate failed', e);
     }
 
-    // Android 17+ blocks multicast discovery and LAN connections until this permission is granted,
+    // Android 13+ may gate Wi-Fi/LAN access behind a nearby-devices permission,
     // so ask before the server and discovery start.
     final localNetworkGranted = await requestLocalNetworkPermissionAndroid();
     if (!localNetworkGranted) {
@@ -210,6 +211,13 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
     if (context.mounted) {
       context.showSnackBar(e.toString());
     }
+  }
+
+  if (checkPlatform([TargetPlatform.android]) && ref.read(settingsProvider).backgroundReceive && ref.read(serverProvider) != null) {
+    // The setting was explicitly enabled by the user in a previous foreground session. Starting
+    // it here keeps the service launch within Android's user-visible foreground-start rules, and
+    // avoids showing a healthy-looking notification when the server failed to bind its port.
+    startBackgroundReceiveService();
   }
 
   try {

@@ -42,6 +42,7 @@ class Translations with BaseTranslations<AppLocale, Translations> {
   Translations $copyWith({TranslationMetadata<AppLocale, Translations>? meta}) => Translations(meta: meta ?? this.$meta);
 
   // Translations
+  late final Translations$notifications$en notifications = Translations$notifications$en.internal(_root);
 
   /// en: 'LocalSend'
   String get appName => 'LocalSend';
@@ -73,6 +74,30 @@ class Translations with BaseTranslations<AppLocale, Translations> {
   late final Translations$tray$en tray = Translations$tray$en.internal(_root);
   late final Translations$web$en web = Translations$web$en.internal(_root);
   late final Translations$assetPicker$en assetPicker = Translations$assetPicker$en.internal(_root);
+}
+
+// Path: notifications
+class Translations$notifications$en {
+  Translations$notifications$en.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Background receiving service'
+  String get backgroundService => 'Background receiving service';
+
+  /// en: 'Incoming requests'
+  String get requests => 'Incoming requests';
+
+  /// en: 'Transfer progress'
+  String get progress => 'Transfer progress';
+
+  /// en: 'Received files and messages'
+  String get results => 'Received files and messages';
+
+  /// en: 'Ignore'
+  String get ignore => 'Ignore';
 }
 
 // Path: general
@@ -1132,6 +1157,9 @@ class Translations$settingsTab$receive$en {
 
   /// en: 'Save to history'
   String get saveToHistory => 'Save to history';
+
+  /// en: 'Run in background'
+  String get runInBackground => 'Run in background';
 
   /// en: 'Verify checksums when receiving files'
   String get verifyChecksums => 'Verify checksums when receiving files';

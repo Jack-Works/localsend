@@ -125,7 +125,7 @@ Future<FileSaveTarget> reopenFileSaveTarget(FileSaveTarget target) async {
 ///
 /// Returns (savedToGallery, filePath):
 /// - savedToGallery: true if saved to gallery, false if saved to directory
-/// - filePath: absolute path to file (null when saved to gallery)
+/// - filePath: absolute path or Android MediaStore URI (null for other gallery backends)
 Future<(bool, String?)> saveCachedFileToGallery({
   required String cachedPath,
   required String destinationDirectory,
@@ -133,10 +133,16 @@ Future<(bool, String?)> saveCachedFileToGallery({
   required bool isImage,
   required Set<String> createdDirectories,
 }) async {
+  String? galleryUri;
   try {
-    isImage ? await Gal.putImage(cachedPath) : await Gal.putVideo(cachedPath);
-  } on GalException catch (e) {
-    _logger.warning('Could not save to gallery (${e.type.name}), moving to destination directory', e);
+    if (Platform.isAndroid) {
+      galleryUri = await android_channel.saveReceivedMediaAndroid(cachedPath, isImage);
+    }
+    if (galleryUri == null) {
+      isImage ? await Gal.putImage(cachedPath) : await Gal.putVideo(cachedPath);
+    }
+  } catch (e) {
+    _logger.warning('Could not save to gallery, moving to destination directory', e);
 
     final (fallbackPath, _, _) = await digestFilePathAndPrepareDirectory(
       parentDirectory: destinationDirectory,
@@ -154,7 +160,7 @@ Future<(bool, String?)> saveCachedFileToGallery({
   } catch (e) {
     _logger.warning('Could not delete cached file after saving to gallery', e);
   }
-  return (true, null);
+  return (true, galleryUri);
 }
 
 /// Turns the peer-supplied [fileName] into a relative name that stays inside

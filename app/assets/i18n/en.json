@@ -1,4 +1,11 @@
 {
+  "notifications": {
+    "backgroundService": "Background receiving service",
+    "requests": "Incoming requests",
+    "progress": "Transfer progress",
+    "results": "Received files and messages",
+    "ignore": "Ignore"
+  },
   "appName": "LocalSend",
   "general": {
     "accept": "Accept",
@@ -122,6 +129,7 @@
       "downloads": "(Downloads)",
       "saveToGallery": "Save media to gallery",
       "saveToHistory": "Save to history",
+      "runInBackground": "Run in background",
       "verifyChecksums": "Verify checksums when receiving files"
     },
     "send": {

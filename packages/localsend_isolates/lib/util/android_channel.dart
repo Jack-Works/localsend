@@ -99,3 +99,7 @@ Future<int> openFileForWritingAndroid({required String uri}) async {
   }
   return fileDescriptor;
 }
+
+/// Android 10+ returns the saved MediaStore URI. Older versions use the gallery plugin.
+Future<String?> saveReceivedMediaAndroid(String path, bool image) =>
+    _methodChannel.invokeMethod<String>('saveReceivedMedia', {'path': path, 'image': image});

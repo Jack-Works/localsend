@@ -1,4 +1,11 @@
 {
+  "notifications": {
+    "backgroundService": "后台接收服务",
+    "requests": "接收请求",
+    "progress": "传输进度",
+    "results": "收到的文件与文本",
+    "ignore": "忽略"
+  },
   "appName": "LocalSend",
   "general": {
     "accept": "接受",

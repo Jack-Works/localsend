@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:flutter/services.dart';
 import 'package:logging/logging.dart';
@@ -6,6 +8,32 @@ part 'android_channel.mapper.dart';
 
 const _methodChannel = MethodChannel('org.localsend.localsend_app/localsend');
 final _logger = Logger('AndroidSaf');
+
+void setAndroidEventHandlers({
+  required FutureOr<void> Function() onScreenInteractive,
+  required Future<void> Function(String sessionId, String action) onReceiveNotificationAction,
+}) {
+  _methodChannel.setMethodCallHandler((call) async {
+    switch (call.method) {
+      case 'screenInteractive':
+        await onScreenInteractive();
+      case 'receiveNotificationAction':
+        final arguments = (call.arguments as Map).cast<String, dynamic>();
+        await onReceiveNotificationAction(arguments['sessionId'] as String, arguments['action'] as String);
+      default:
+        throw MissingPluginException('Unknown Android callback: ${call.method}');
+    }
+  });
+}
+
+Future<T?> receiveNotificationAndroid<T>(String method, Map<String, Object?> arguments) async {
+  try {
+    return await _methodChannel.invokeMethod<T>(method, arguments);
+  } catch (e, st) {
+    _logger.warning('Android notification operation failed: $method', e, st);
+    return null;
+  }
+}
 
 /// From Android 10 and above, we need to use the Storage Access Framework (SAF) to access files due to the scoped storage.
 /// SAF itself is available from Android 4.4 (API level 19).
@@ -53,8 +81,9 @@ Future<bool> getSystemAnimationsStatusAndroid() async {
   return await _methodChannel.invokeMethod('isAnimationsEnabled') ?? true;
 }
 
-/// Requests the "Nearby devices" permission gating local network access on Android 17+.
-/// Returns true when granted or when running on an older Android version.
+/// Requests the local-network permission. Android 17+ uses ACCESS_LOCAL_NETWORK;
+/// Android 13-16 use the nearby-devices permission. Returns true when granted or
+/// when running on an older Android version.
 Future<bool> requestLocalNetworkPermissionAndroid() async {
   try {
     return await _methodChannel.invokeMethod<bool>('requestLocalNetworkPermission') ?? false;
@@ -62,6 +91,16 @@ Future<bool> requestLocalNetworkPermissionAndroid() async {
     _logger.warning('Could not request local network permission', e);
     return false;
   }
+}
+
+/// Keeps Wi-Fi multicast discovery working while the screen is interactive. This lock is
+/// independent from the HTTP server and foreground service.
+void setLocalNetworkMulticastLockAndroid(bool enabled) {
+  unawaited(
+    _methodChannel.invokeMethod<void>('setLocalNetworkMulticastLock', {'enabled': enabled}).catchError((e) {
+      _logger.warning('Could not update local network multicast lock', e);
+    }),
+  );
 }
 
 Future<void> openContentUri({

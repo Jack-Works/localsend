@@ -164,6 +164,11 @@ class SettingsStateMapper extends ClassMapperBase<SettingsState> {
     'discoveryTimeout',
     _$discoveryTimeout,
   );
+  static bool _$backgroundReceive(SettingsState v) => v.backgroundReceive;
+  static const Field<SettingsState, bool> _f$backgroundReceive = Field(
+    'backgroundReceive',
+    _$backgroundReceive,
+  );
   static bool _$advancedSettings(SettingsState v) => v.advancedSettings;
   static const Field<SettingsState, bool> _f$advancedSettings = Field(
     'advancedSettings',
@@ -201,6 +206,7 @@ class SettingsStateMapper extends ClassMapperBase<SettingsState> {
     #createChecksums: _f$createChecksums,
     #verifyChecksums: _f$verifyChecksums,
     #discoveryTimeout: _f$discoveryTimeout,
+    #backgroundReceive: _f$backgroundReceive,
     #advancedSettings: _f$advancedSettings,
   };
 
@@ -235,6 +241,7 @@ class SettingsStateMapper extends ClassMapperBase<SettingsState> {
       createChecksums: data.dec(_f$createChecksums),
       verifyChecksums: data.dec(_f$verifyChecksums),
       discoveryTimeout: data.dec(_f$discoveryTimeout),
+      backgroundReceive: data.dec(_f$backgroundReceive),
       advancedSettings: data.dec(_f$advancedSettings),
     );
   }
@@ -335,6 +342,7 @@ abstract class SettingsStateCopyWith<$R, $In extends SettingsState, $Out>
     bool? createChecksums,
     bool? verifyChecksums,
     int? discoveryTimeout,
+    bool? backgroundReceive,
     bool? advancedSettings,
   });
   SettingsStateCopyWith<$R2, $In, $Out2> $chain<$R2, $Out2>(Then<$Out2, $R2> t);
@@ -397,6 +405,7 @@ class _SettingsStateCopyWithImpl<$R, $Out>
     bool? createChecksums,
     bool? verifyChecksums,
     int? discoveryTimeout,
+    bool? backgroundReceive,
     bool? advancedSettings,
   }) => $apply(
     FieldCopyWithData({
@@ -433,6 +442,7 @@ class _SettingsStateCopyWithImpl<$R, $Out>
       if (createChecksums != null) #createChecksums: createChecksums,
       if (verifyChecksums != null) #verifyChecksums: verifyChecksums,
       if (discoveryTimeout != null) #discoveryTimeout: discoveryTimeout,
+      if (backgroundReceive != null) #backgroundReceive: backgroundReceive,
       if (advancedSettings != null) #advancedSettings: advancedSettings,
     }),
   );
@@ -479,6 +489,10 @@ class _SettingsStateCopyWithImpl<$R, $Out>
     createChecksums: data.get(#createChecksums, or: $value.createChecksums),
     verifyChecksums: data.get(#verifyChecksums, or: $value.verifyChecksums),
     discoveryTimeout: data.get(#discoveryTimeout, or: $value.discoveryTimeout),
+    backgroundReceive: data.get(
+      #backgroundReceive,
+      or: $value.backgroundReceive,
+    ),
     advancedSettings: data.get(#advancedSettings, or: $value.advancedSettings),
   );
 
@@ -487,4 +501,3 @@ class _SettingsStateCopyWithImpl<$R, $Out>
     Then<$Out2, $R2> t,
   ) => _SettingsStateCopyWithImpl<$R2, $Out2>($value, $cast, t);
 }
-

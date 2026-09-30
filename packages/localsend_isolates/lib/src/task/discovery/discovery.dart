@@ -26,6 +26,7 @@ class DiscoveryService {
   RsDiscovery? _discovery;
   Completer<void> _retryCompleter = Completer();
   bool _listening = false;
+  bool _announcementPending = false;
 
   /// Whether the current discovery was stopped by [restartListener], as
   /// opposed to stopping itself because the multicast sockets failed.
@@ -97,6 +98,9 @@ class DiscoveryService {
       _discovery = discovery;
 
       // Tell everyone in the network that I am online.
+      final queuedAnnouncement = _announcementPending;
+      _announcementPending = false;
+      _logger.info(queuedAnnouncement ? 'Announce via UDP (queued)' : 'Announce via UDP');
       unawaited(discovery.announce());
 
       await for (final device in discovery.listen()) {
@@ -138,7 +142,11 @@ class DiscoveryService {
   Future<void> sendAnnouncement() async {
     final discovery = _discovery;
     if (discovery == null) {
-      _logger.info('Discovery is not running, skipping announcement');
+      // The receive page can announce while the discovery isolate is still
+      // binding its sockets. Keep that request alive; the initial announce
+      // below will satisfy it as soon as the listener is ready.
+      _announcementPending = true;
+      _logger.info('Discovery is not running, queueing announcement');
       return;
     }
 

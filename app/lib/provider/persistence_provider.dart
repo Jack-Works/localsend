@@ -94,6 +94,7 @@ const _receiveViaLinkAutoAccept = 'ls_receive_via_link_auto_accept';
 const _createChecksums = 'ls_create_checksums';
 const _verifyChecksums = 'ls_verify_checksums';
 const _advancedSettingsKey = 'ls_advanced_settings';
+const _backgroundReceive = 'ls_background_receive';
 const _whatsNewKey = 'ls_whats_new';
 
 final persistenceProvider = Provider<PersistenceService>((ref) {
@@ -443,6 +444,14 @@ class PersistenceService {
 
   Future<void> setSaveToHistory(bool saveToHistory) async {
     await _prefs.setBool(_saveToHistory, saveToHistory);
+  }
+
+  bool isBackgroundReceive() {
+    return _prefs.getBool(_backgroundReceive) ?? false;
+  }
+
+  Future<void> setBackgroundReceive(bool backgroundReceive) async {
+    await _prefs.setBool(_backgroundReceive, backgroundReceive);
   }
 
   bool getAdvancedSettingsEnabled() {

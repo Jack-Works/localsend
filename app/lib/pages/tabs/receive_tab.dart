@@ -7,6 +7,7 @@ import 'package:localsend_app/pages/receive_history_page.dart';
 import 'package:localsend_app/pages/web_share_page.dart';
 import 'package:localsend_app/provider/animation_provider.dart';
 import 'package:localsend_app/provider/local_ip_provider.dart';
+import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
 import 'package:localsend_app/provider/network/server/server_provider.dart';
 import 'package:localsend_app/provider/settings_provider.dart';
 import 'package:localsend_app/util/ip_helper.dart';
@@ -35,6 +36,29 @@ class _ReceiveTabState extends State<ReceiveTab> {
   /// Whether the history button is shown
   /// This extra boolean is needed to delay the animation
   bool _showHistoryButton = true;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // The send tab's initial scan announces this device as a side effect. The receive tab must
+    // announce once on entry too, otherwise a peer scanning just after launch may not see us
+    // until the user visits the send/discovery tab.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _announcePresence();
+    });
+  }
+
+  void _announcePresence() {
+    if (!mounted || context.read(homePageControllerProvider).currentTab != HomeTab.receive) {
+      return;
+    }
+
+    context.redux(nearbyDevicesProvider).dispatch(StartMulticastScan());
+  }
 
   Future<void> _toggleAdvanced() async {
     if (_showAdvanced) {
