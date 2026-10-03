@@ -123,11 +123,9 @@ void main() {
     expect(controller.accepted, isEmpty);
   });
 
-  test('text previews wait for acceptance and complete without uploading a file', () async {
+  test('text previews are accepted automatically without a request notification', () async {
     await controller.onPrepareUpload(request(message: 'hello'));
-    expect(controller.accepted, isEmpty);
-    expect(calls.any((call) => call.method == 'showReceiveComplete'), isFalse);
-    await controller.handleNotificationAction('current', 'accept');
+    expect(calls.any((call) => call.method == 'showReceiveRequest'), isFalse);
     expect(controller.accepted, [<String, String>{}]);
   });
 }

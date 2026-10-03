@@ -109,6 +109,8 @@ object ReceiveNotifications {
             // Keep large messages out of PendingIntent Binder payloads, and allow copying after process death.
             val directory = File(context.filesDir, "notification_messages").apply { mkdirs() }
             val file = File.createTempFile("message-", ".txt", directory).apply { writeText(message) }
+            notification.addAction(shareAction(context, key,
+                Intent(context, ShareReceivedActivity::class.java).putExtra("messageFile", file.name)))
             val copyIntent = action(context, key, "copy", file.name)
             notification.addAction(Notification.Action.Builder(null, copy, copyIntent).build())
                 .setDeleteIntent(action(context, key, "delete", file.name))
@@ -121,6 +123,9 @@ object ReceiveNotifications {
                     "video" -> "video/*"
                     else -> "*/*"
                 }
+                notification.addAction(shareAction(context, key,
+                    Intent(context, ShareReceivedActivity::class.java)
+                        .putExtra(Intent.EXTRA_STREAM, uri).putExtra("mime", mime)))
                 val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime)
                     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 val pending = PendingIntent.getActivity(context, key.hashCode(), intent,
@@ -147,6 +152,13 @@ object ReceiveNotifications {
                 }
             }
         }
+    }
+
+    private fun shareAction(context: Context, key: String, intent: Intent): Notification.Action {
+        intent.data = Uri.Builder().scheme("localsend").authority("share").appendPath(key).build()
+        val pending = PendingIntent.getActivity(context, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        return Notification.Action.Builder(null, context.getString(R.string.share_received), pending).build()
     }
 
     private fun thumbnail(context: Context, path: String, video: Boolean): Bitmap? {

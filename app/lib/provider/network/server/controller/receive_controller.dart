@@ -160,6 +160,10 @@ class ReceiveController {
     final receiveInBackground = checkPlatform([TargetPlatform.android]) && settings.backgroundReceive && ForegroundService.isAppInBackground;
     if (receiveInBackground) {
       _notificationSessionId = sessionId;
+      if (server.getState().session!.message != null) {
+        await acceptFileRequest({});
+        return;
+      }
       final shown = await showBackgroundReceiveRequest(server.getState().session!);
       if (server.getStateOrNull()?.session?.sessionId != sessionId) {
         cancelBackgroundReceiveNotification(sessionId);
